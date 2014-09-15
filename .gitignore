@@ -1,0 +1,5 @@
+dist
+build
+.cabal-sandbox
+cabal.sandbox.config
+*.sw?
