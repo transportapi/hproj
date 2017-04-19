@@ -17,9 +17,9 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Alloc
+import Foreign.Marshal.Utils (toBool)
 import Foreign.ForeignPtr
 import System.IO.Unsafe (unsafePerformIO)
-import Unsafe.Coerce (unsafeCoerce)
 
 data ProjectionPtr
 newtype Projection = Projection {unProjection :: ForeignPtr ProjectionPtr}
@@ -66,13 +66,13 @@ instance Projectable (Double, Double) where
         withProjectionPtr pjTo $ \pjTo' ->
         alloca $ \x' ->
         alloca $ \y' -> do
-            poke x' $ convertDouble x
-            poke y' $ convertDouble y
+            poke x' $ realToFrac x
+            poke y' $ realToFrac y
             err <- c_pjTransform  pjFrom' pjTo' 1 1 x' y' nullPtr
             case err of
                 0 -> do
-                    x'' <- fmap convertDouble $ peek x'
-                    y'' <- fmap convertDouble $ peek y'
+                    x'' <- fmap realToFrac $ peek x'
+                    y'' <- fmap realToFrac $ peek y'
                     return $ Just (x'',y'')
                 _ -> return Nothing
 
@@ -83,15 +83,15 @@ instance Projectable (Double, Double, Double) where
         alloca $ \x' ->
         alloca $ \y' ->
         alloca $ \z' -> do
-            poke x' $ convertDouble x
-            poke y' $ convertDouble y
-            poke z' $ convertDouble z
+            poke x' $ realToFrac x
+            poke y' $ realToFrac y
+            poke z' $ realToFrac z
             err <- c_pjTransform  pjFrom' pjTo' 1 1 x' y' z'
             case err of
                 0 -> do
-                    x'' <- fmap convertDouble $ peek x'
-                    y'' <- fmap convertDouble $ peek y'
-                    z'' <- fmap convertDouble $ peek z'
+                    x'' <- fmap realToFrac $ peek x'
+                    y'' <- fmap realToFrac $ peek y'
+                    z'' <- fmap realToFrac $ peek z'
                     return $ Just (x'',y'', z'')
                 _ -> return Nothing
 
@@ -103,15 +103,3 @@ fromRadian = (/pi) . (*180)
 
 isLatLong :: Projection -> Bool
 isLatLong = toBool . unsafePerformIO . flip withProjectionPtr c_pjIsLatLong
-
-toBool :: CInt -> Bool
-toBool 0 = False
-toBool _ = True
-
-convertDouble :: (Real a, Fractional b) => a -> b
-#ifdef __NHC__
-convertDouble = realToFrac
-#else
-convertDouble = unsafeCoerce
-#endif
-
