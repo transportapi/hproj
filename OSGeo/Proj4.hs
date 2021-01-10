@@ -48,8 +48,8 @@ foreign import ccall "proj_api.h pj_is_latlong" c_pjIsLatLong  ::
 foreign import ccall "proj_api.h &pj_free" c_pjFree  ::
     FunPtr (Ptr ProjectionPtr -> IO ())
 
-projection :: String -> Either String Projection
-projection proj = unsafePerformIO $ withCString proj $ \cProj -> do
+projection :: String -> IO (Either String Projection)
+projection proj = withCString proj $ \cProj -> do
     ptr <- c_pjInitPlus cProj
     if (ptr==nullPtr)
         then return $ Left $ "projection: could not initialize projection " ++
