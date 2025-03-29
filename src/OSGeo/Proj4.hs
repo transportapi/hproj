@@ -12,16 +12,15 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Array
-import Foreign.ForeignPtr
 import System.IO.Unsafe (unsafePerformIO)
 
 data ProjectionCtx
 data ProjectionPtr
 
-newtype Projection = Projection {unProjection :: ForeignPtr ProjectionPtr}
+newtype Projection = Projection {unProjection :: Ptr ProjectionPtr}
 
 withProjectionPtr :: Projection -> (Ptr ProjectionPtr -> IO a) -> IO a
-withProjectionPtr = withForeignPtr . unProjection
+withProjectionPtr p f = f $ unProjection p
 
 foreign import ccall "proj.h proj_context_create" c_pjContextCreate
   :: IO (Ptr ProjectionCtx)
@@ -42,7 +41,7 @@ projection from to = unsafePerformIO $
     if ptr == nullPtr
         then return $ Left $ "projection: could not initialize projection " ++
                              "'" <> from <> " -> " <> to  <> "'"
-        else fmap (Right . Projection) $ newForeignPtr_ ptr
+        else pure $ Right $ Projection ptr
     
 class Projectable a where
   transform :: Projection -> a -> Maybe a
