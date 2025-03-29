@@ -8,6 +8,9 @@ module OSGeo.Proj4 (
   , createProjection
 ) where
 
+import Control.Concurrent.MVar (MVar)
+import qualified Control.Concurrent.MVar as MVar
+
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
@@ -17,7 +20,7 @@ import System.IO.Unsafe (unsafePerformIO)
 data ProjectionCtx
 data ProjectionPtr
 
-newtype Projection = Projection (Ptr ProjectionPtr)
+data Projection = Projection (Ptr ProjectionPtr) (MVar ())
 
 foreign import ccall "proj.h proj_context_create" c_pjContextCreate
   :: IO (Ptr ProjectionCtx)
@@ -33,12 +36,15 @@ createProjection from to =
   withCString from $ \cFrom ->
   withCString to $ \cTo -> do
     ctx <- c_pjContextCreate
-    ptr <- c_pjCreateCrsToCrs ctx cFrom cTo nullPtr
-
-    if ptr == nullPtr
-        then return $ Left $ "projection: could not initialize projection " ++
-                             "'" <> from <> " -> " <> to  <> "'"
-        else pure $ Right $ Projection ptr
+    if ctx == nullPtr
+      then pure $ Left "createProjection: could not initialize context"
+      else do
+        ptr <- c_pjCreateCrsToCrs ctx cFrom cTo nullPtr
+        if ptr == nullPtr
+            then pure $ Left $ "createProjection: could not initialize projection " <> "'" <> from <> " -> " <> to  <> "'"
+            else do
+              mutex <- MVar.newMVar ()
+              pure $ Right $ Projection ptr mutex
     
 class Projectable a where
   transform :: Projection -> a -> Maybe a
@@ -48,7 +54,7 @@ pjFwd = 1
 
 instance Projectable (Double, Double) where
   {-# NOINLINE transform #-}
-  transform (Projection ptr) (x, y) = unsafePerformIO $
+  transform (Projection ptr mutex) (x, y) = unsafePerformIO $ MVar.withMVar mutex $ \_ ->
     withArray [CDouble x, CDouble y, 0, 0] $ \c -> do
       err <- c_pjTransArray ptr pjFwd 1 c
 
@@ -62,7 +68,7 @@ instance Projectable (Double, Double) where
 
 instance Projectable (Double, Double, Double) where
   {-# NOINLINE transform #-}
-  transform (Projection ptr) (x, y, z) = unsafePerformIO $
+  transform (Projection ptr mutex) (x, y, z) = unsafePerformIO $ MVar.withMVar mutex $ \_ ->
     withArray [CDouble x, CDouble y, CDouble z, 0] $ \c -> do
       err <- c_pjTransArray ptr pjFwd 1 c
 
