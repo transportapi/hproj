@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
@@ -31,9 +32,6 @@ foreign import ccall "proj.h proj_create_crs_to_crs" c_pjCreateCrsToCrs
 foreign import ccall "proj.h proj_trans_array" c_pjTransArray
   :: Ptr ProjectionPtr -> CInt -> CInt -> Ptr CDouble -> IO CInt
 
-foreign import ccall "proj.h &proj_destroy" c_pjDestroy
-  :: FunPtr (Ptr ProjectionPtr -> IO ())
-
 projection :: String -> String -> Either String Projection
 projection from to = unsafePerformIO $
   withCString from $ \cFrom ->
@@ -44,7 +42,7 @@ projection from to = unsafePerformIO $
     if ptr == nullPtr
         then return $ Left $ "projection: could not initialize projection " ++
                              "'" <> from <> " -> " <> to  <> "'"
-        else fmap (Right . Projection) $ newForeignPtr c_pjDestroy ptr
+        else fmap (Right . Projection) $ newForeignPtr_ ptr
     
 class Projectable a where
   transform :: Projection -> a -> Maybe a
@@ -60,9 +58,9 @@ instance Projectable (Double, Double) where
 
       case err of
         0 -> do
-          x' <- peekElemOff c 0
-          y' <- peekElemOff c 1
-          pure $ Just (realToFrac x', realToFrac y')
+          !x' <- peekElemOff c 0
+          !y' <- peekElemOff c 1
+          pure $! Just $! (realToFrac x', realToFrac y')
 
         _ -> pure Nothing
 
@@ -74,9 +72,9 @@ instance Projectable (Double, Double, Double) where
 
       case err of
         0 -> do
-          x' <- peekElemOff c 0
-          y' <- peekElemOff c 1
-          z' <- peekElemOff c 2
-          pure $ Just (realToFrac x', realToFrac y', realToFrac z')
+          !x' <- peekElemOff c 0
+          !y' <- peekElemOff c 1
+          !z' <- peekElemOff c 2
+          pure $! Just $! (realToFrac x', realToFrac y', realToFrac z')
 
         _ -> pure Nothing

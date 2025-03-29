@@ -1,7 +1,14 @@
+let
+  nixpkgs = builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/nixos-24.11.tar.gz";
+    sha256 = "sha256:0hdb0ajwfl7xn1hznik4kj35adiksc8k5apllz3jniwrszpkwrwm";
+  };
+  pkgs = import nixpkgs {};
+in
 {ghc}:
-with (import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-22.11.tar.gz") {});
+with pkgs;
 
 haskell.lib.buildStackProject {
   name = "env";
-  buildInputs = [ proj ];
+  buildInputs = [ bzip2 zlib snappy stdenv.cc.cc.lib proj ];
 }
