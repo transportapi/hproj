@@ -31,6 +31,7 @@ foreign import ccall "proj.h proj_create_crs_to_crs" c_pjCreateCrsToCrs
 foreign import ccall "proj.h proj_trans_array" c_pjTransArray
   :: Ptr ProjectionPtr -> CInt -> CInt -> Ptr CDouble -> IO CInt
 
+{-# NOINLINE projection #-}
 projection :: String -> String -> Either String Projection
 projection from to = unsafePerformIO $
   withCString from $ \cFrom ->
@@ -50,6 +51,7 @@ pjFwd :: CInt
 pjFwd = 1
 
 instance Projectable (Double, Double) where
+  {-# NOINLINE transform #-}
   transform p (x, y) = unsafePerformIO $
     withProjectionPtr p $ \p' ->
     withArray [CDouble x, CDouble y, 0, 0] $ \c -> do
@@ -64,6 +66,7 @@ instance Projectable (Double, Double) where
         _ -> pure Nothing
 
 instance Projectable (Double, Double, Double) where
+  {-# NOINLINE transform #-}
   transform p (x, y, z) = unsafePerformIO $
     withProjectionPtr p $ \p' ->
     withArray [CDouble x, CDouble y, CDouble z, 0] $ \c -> do
